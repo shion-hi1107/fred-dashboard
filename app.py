@@ -11,7 +11,6 @@ app = Flask(__name__)
 
 API_KEY = os.environ.get("API_KEY")
 
-# キャッシュ（1時間）
 CACHE = {}
 CACHE_TIME = 3600
 
@@ -22,14 +21,9 @@ def get_data(series_id):
         return CACHE[series_id]["data"]
 
     url = f"https://api.stlouisfed.org/fred/series/observations?series_id={series_id}&api_key={API_KEY}&file_type=json"
-    response = requests.get(url)
-    data = response.json()
+    data = requests.get(url).json()
 
-    CACHE[series_id] = {
-        "data": data,
-        "time": now
-    }
-
+    CACHE[series_id] = {"data": data, "time": now}
     return data
 
 def create_graph(dates, values, title):
@@ -44,110 +38,126 @@ def create_graph(dates, values, title):
     buf.seek(0)
     return base64.b64encode(buf.getvalue()).decode()
 
+def parse_data(observations):
+    dates = []
+    values = []
+
+    for item in observations:
+        if item["value"] != ".":
+            dates.append(datetime.strptime(item["date"], "%Y-%m-%d"))
+            values.append(float(item["value"]))
+
+    return dates, values
+
 @app.route("/")
 def index():
 
     # 金利
-    data1 = get_data("DGS10")
-    obs1 = data1["observations"]
-
-    dates1 = []
-    values1 = []
-
-    for item in obs1:
-        if item["value"] != ".":
-            dates1.append(datetime.strptime(item["date"], "%Y-%m-%d"))
-            values1.append(float(item["value"]))
-
-    graph1 = create_graph(dates1, values1, "Interest Rate")
-    latest1 = obs1[-1]
+    obs1 = get_data("DGS10")["observations"]
+    d1, v1 = parse_data(obs1)
+    g1 = create_graph(d1, v1, "Interest Rate")
+    l1 = obs1[-1]
 
     # CPI
-    data2 = get_data("CPIAUCSL")
-    obs2 = data2["observations"]
-
-    dates2 = []
-    values2 = []
-
-    for item in obs2:
-        if item["value"] != ".":
-            dates2.append(datetime.strptime(item["date"], "%Y-%m-%d"))
-            values2.append(float(item["value"]))
-
-    graph2 = create_graph(dates2, values2, "CPI")
-    latest2 = obs2[-1]
+    obs2 = get_data("CPIAUCSL")["observations"]
+    d2, v2 = parse_data(obs2)
+    g2 = create_graph(d2, v2, "CPI")
+    l2 = obs2[-1]
 
     # 失業率
-    data3 = get_data("UNRATE")
-    obs3 = data3["observations"]
+    obs3 = get_data("UNRATE")["observations"]
+    d3, v3 = parse_data(obs3)
+    g3 = create_graph(d3, v3, "Unemployment")
+    l3 = obs3[-1]
 
-    dates3 = []
-    values3 = []
+    # S&P500
+    obs4 = get_data("SP500")["observations"]
+    d4, v4 = parse_data(obs4)
+    g4 = create_graph(d4, v4, "S&P500")
+    l4 = obs4[-1]
 
-    for item in obs3:
-        if item["value"] != ".":
-            dates3.append(datetime.strptime(item["date"], "%Y-%m-%d"))
-            values3.append(float(item["value"]))
+    # ドル円
+    obs5 = get_data("DEXJPUS")["observations"]
+    d5, v5 = parse_data(obs5)
+    g5 = create_graph(d5, v5, "USD/JPY")
+    l5 = obs5[-1]
 
-    graph3 = create_graph(dates3, values3, "Unemployment Rate")
-    latest3 = obs3[-1]
+    # NASDAQ（株価）
+    obs6 = get_data("NASDAQCOM")["observations"]
+    d6, v6 = parse_data(obs6)
+    g6 = create_graph(d6, v6, "NASDAQ")
+    l6 = obs6[-1]
 
     return f"""
     <html>
     <head>
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <style>
-    body {{
-        font-family: Arial;
-        text-align: center;
-        margin: 10px;
-    }}
-    .box {{
-        border: 1px solid #ccc;
-        padding: 15px;
-        margin-bottom: 20px;
-        border-radius: 10px;
-    }}
-    .big {{
-        font-size: 30px;
-        font-weight: bold;
-    }}
-    img {{
-        width: 100%;
-        max-width: 500px;
-    }}
+    body {{ font-family: Arial; text-align: center; margin: 10px; }}
+    button {{ padding: 10px; margin: 5px; font-size: 16px; }}
+    .box {{ display: none; }}
+    .active {{ display: block; }}
+    img {{ width: 100%; max-width: 500px; }}
+    .big {{ font-size: 30px; font-weight: bold; }}
     </style>
+
+    <script>
+    function show(id) {{
+        var boxes = document.getElementsByClassName("box");
+        for (var i = 0; i < boxes.length; i++) {{
+            boxes[i].classList.remove("active");
+        }}
+        document.getElementById(id).classList.add("active");
+    }}
+    </script>
     </head>
 
     <body>
 
     <h1>📊 Economic Dashboard</h1>
 
-    <div class="box">
-        <h2>Interest Rate</h2>
-        <div class="big">{latest1["value"]} %</div>
-        <p>{latest1["date"]}</p>
-        <img src="data:image/png;base64,{graph1}">
+    <button onclick="show('rate')">金利</button>
+    <button onclick="show('cpi')">CPI</button>
+    <button onclick="show('unemp')">失業率</button>
+    <button onclick="show('sp')">S&P500</button>
+    <button onclick="show('fx')">ドル円</button>
+    <button onclick="show('nasdaq')">NASDAQ</button>
+
+    <div id="rate" class="box active">
+        <h2>金利</h2>
+        <div class="big">{l1["value"]} %</div>
+        <img src="data:image/png;base64,{g1}">
     </div>
 
-    <div class="box">
+    <div id="cpi" class="box">
         <h2>CPI</h2>
-        <div class="big">{latest2["value"]}</div>
-        <p>{latest2["date"]}</p>
-        <img src="data:image/png;base64,{graph2}">
+        <div class="big">{l2["value"]}</div>
+        <img src="data:image/png;base64,{g2}">
     </div>
 
-    <div class="box">
-        <h2>Unemployment Rate</h2>
-        <div class="big">{latest3["value"]} %</div>
-        <p>{latest3["date"]}</p>
-        <img src="data:image/png;base64,{graph3}">
+    <div id="unemp" class="box">
+        <h2>失業率</h2>
+        <div class="big">{l3["value"]} %</div>
+        <img src="data:image/png;base64,{g3}">
     </div>
 
-    <hr>
-    <p style='font-size:12px;'>
-    This product uses the FRED® API but is not endorsed or certified by the Federal Reserve Bank of St. Louis.
-    </p>
+    <div id="sp" class="box">
+        <h2>S&P500</h2>
+        <div class="big">{l4["value"]}</div>
+        <img src="data:image/png;base64,{g4}">
+    </div>
+
+    <div id="fx" class="box">
+        <h2>USD/JPY</h2>
+        <div class="big">{l5["value"]}</div>
+        <img src="data:image/png;base64,{g5}">
+    </div>
+
+    <div id="nasdaq" class="box">
+        <h2>NASDAQ</h2>
+        <div class="big">{l6["value"]}</div>
+        <img src="data:image/png;base64,{g6}">
+    </div>
 
     </body>
     </html>
