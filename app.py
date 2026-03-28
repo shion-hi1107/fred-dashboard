@@ -11,7 +11,7 @@ app = Flask(__name__)
 API_KEY = os.environ.get("API_KEY")
 
 CACHE = {}
-CACHE_TIME = 3600
+CACHE_TIME = 600  # ← ここが10分（600秒）
 
 def get_data(series_id):
     now = time.time()
@@ -78,7 +78,7 @@ def index():
     <html>
     <head>
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    <meta http-equiv="refresh" content="300">
+    <meta http-equiv="refresh" content="300">  <!-- 5分ごと更新 -->
 
     <style>
     body {{
