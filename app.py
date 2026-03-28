@@ -29,6 +29,7 @@ def create_graph(dates, values, title):
     plt.figure()
     plt.plot(dates, values)
     plt.title(title)
+    plt.grid()
     plt.xticks(rotation=45)
     plt.tight_layout()
 
@@ -37,10 +38,9 @@ def create_graph(dates, values, title):
     buf.seek(0)
     return base64.b64encode(buf.getvalue()).decode()
 
-def parse_data(observations):
-    dates = []
-    values = []
-    for item in observations:
+def parse_data(obs):
+    dates, values = [], []
+    for item in obs:
         if item["value"] != ".":
             dates.append(datetime.strptime(item["date"], "%Y-%m-%d"))
             values.append(float(item["value"]))
@@ -49,35 +49,23 @@ def parse_data(observations):
 @app.route("/")
 def index():
 
-    obs1 = get_data("DGS10")["observations"]
-    d1, v1 = parse_data(obs1)
-    g1 = create_graph(d1, v1, "Interest Rate")
-    l1 = obs1[-1]
+    datasets = {
+        "rate": ("DGS10", "金利", "%"),
+        "cpi": ("CPIAUCSL", "CPI", ""),
+        "unemp": ("UNRATE", "失業率", "%"),
+        "sp": ("SP500", "S&P500", ""),
+        "fx": ("DEXJPUS", "ドル円", ""),
+        "nasdaq": ("NASDAQCOM", "NASDAQ", "")
+    }
 
-    obs2 = get_data("CPIAUCSL")["observations"]
-    d2, v2 = parse_data(obs2)
-    g2 = create_graph(d2, v2, "CPI")
-    l2 = obs2[-1]
+    graphs = {}
 
-    obs3 = get_data("UNRATE")["observations"]
-    d3, v3 = parse_data(obs3)
-    g3 = create_graph(d3, v3, "Unemployment")
-    l3 = obs3[-1]
-
-    obs4 = get_data("SP500")["observations"]
-    d4, v4 = parse_data(obs4)
-    g4 = create_graph(d4, v4, "S&P500")
-    l4 = obs4[-1]
-
-    obs5 = get_data("DEXJPUS")["observations"]
-    d5, v5 = parse_data(obs5)
-    g5 = create_graph(d5, v5, "USD/JPY")
-    l5 = obs5[-1]
-
-    obs6 = get_data("NASDAQCOM")["observations"]
-    d6, v6 = parse_data(obs6)
-    g6 = create_graph(d6, v6, "NASDAQ")
-    l6 = obs6[-1]
+    for key, (sid, title, unit) in datasets.items():
+        obs = get_data(sid)["observations"]
+        d, v = parse_data(obs)
+        g = create_graph(d, v, title)
+        latest = obs[-1]["value"]
+        graphs[key] = (g, latest, title, unit)
 
     return f"""
     <html>
@@ -88,24 +76,49 @@ def index():
     body {{
         font-family: Arial;
         text-align: center;
-        margin: 10px;
-        background-color: white;
+        margin: 0;
+        background: white;
         color: black;
     }}
 
-    .dark {{
-        background-color: #121212;
+    body.dark {{
+        background: #121212;
         color: white;
     }}
 
-    button {{
-        padding: 10px;
-        margin: 5px;
-        font-size: 16px;
+    header {{
+        padding: 15px;
+        font-size: 24px;
+        font-weight: bold;
     }}
 
-    .box {{ display: none; }}
-    .active {{ display: block; }}
+    .controls {{
+        margin: 10px;
+    }}
+
+    button {{
+        padding: 10px 15px;
+        margin: 5px;
+        border: none;
+        border-radius: 8px;
+        cursor: pointer;
+        background: #007bff;
+        color: white;
+        font-weight: bold;
+    }}
+
+    button:hover {{
+        opacity: 0.8;
+    }}
+
+    .box {{
+        display: none;
+        padding: 10px;
+    }}
+
+    .active {{
+        display: block;
+    }}
 
     img {{
         width: 100%;
@@ -113,15 +126,16 @@ def index():
     }}
 
     .big {{
-        font-size: 30px;
+        font-size: 32px;
         font-weight: bold;
+        margin: 10px 0;
     }}
     </style>
 
     <script>
     function show(id) {{
-        var boxes = document.getElementsByClassName("box");
-        for (var i = 0; i < boxes.length; i++) {{
+        let boxes = document.getElementsByClassName("box");
+        for (let i = 0; i < boxes.length; i++) {{
             boxes[i].classList.remove("active");
         }}
         document.getElementById(id).classList.add("active");
@@ -129,6 +143,13 @@ def index():
 
     function toggleDark() {{
         document.body.classList.toggle("dark");
+        localStorage.setItem("dark", document.body.classList.contains("dark"));
+    }}
+
+    window.onload = function() {{
+        if(localStorage.getItem("dark") === "true") {{
+            document.body.classList.add("dark");
+        }}
     }}
     </script>
 
@@ -136,52 +157,27 @@ def index():
 
     <body>
 
-    <h1>📊 Dashboard</h1>
+    <header>📊 Economic Dashboard</header>
 
-    <button onclick="toggleDark()">🌙 ダークモード</button><br>
-
-    <button onclick="show('rate')">金利</button>
-    <button onclick="show('cpi')">CPI</button>
-    <button onclick="show('unemp')">失業率</button>
-    <button onclick="show('sp')">S&P500</button>
-    <button onclick="show('fx')">ドル円</button>
-    <button onclick="show('nasdaq')">NASDAQ</button>
-
-    <div id="rate" class="box active">
-        <h2>金利</h2>
-        <div class="big">{l1["value"]} %</div>
-        <img src="data:image/png;base64,{g1}">
+    <div class="controls">
+        <button onclick="toggleDark()">🌙</button>
+        <button onclick="show('rate')">金利</button>
+        <button onclick="show('cpi')">CPI</button>
+        <button onclick="show('unemp')">失業率</button>
+        <button onclick="show('sp')">S&P500</button>
+        <button onclick="show('fx')">ドル円</button>
+        <button onclick="show('nasdaq')">NASDAQ</button>
     </div>
 
-    <div id="cpi" class="box">
-        <h2>CPI</h2>
-        <div class="big">{l2["value"]}</div>
-        <img src="data:image/png;base64,{g2}">
-    </div>
-
-    <div id="unemp" class="box">
-        <h2>失業率</h2>
-        <div class="big">{l3["value"]} %</div>
-        <img src="data:image/png;base64,{g3}">
-    </div>
-
-    <div id="sp" class="box">
-        <h2>S&P500</h2>
-        <div class="big">{l4["value"]}</div>
-        <img src="data:image/png;base64,{g4}">
-    </div>
-
-    <div id="fx" class="box">
-        <h2>USD/JPY</h2>
-        <div class="big">{l5["value"]}</div>
-        <img src="data:image/png;base64,{g5}">
-    </div>
-
-    <div id="nasdaq" class="box">
-        <h2>NASDAQ</h2>
-        <div class="big">{l6["value"]}</div>
-        <img src="data:image/png;base64,{g6}">
-    </div>
+    {''.join([
+        f'''
+        <div id="{k}" class="box {'active' if k=='rate' else ''}">
+            <h2>{v[2]}</h2>
+            <div class="big">{v[1]} {v[3]}</div>
+            <img src="data:image/png;base64,{v[0]}">
+        </div>
+        ''' for k, v in graphs.items()
+    ])}
 
     </body>
     </html>
