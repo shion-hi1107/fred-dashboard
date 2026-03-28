@@ -1,145 +1,157 @@
+from flask import Flask
+import requests
 import matplotlib.pyplot as plt
 import io
 import base64
 from datetime import datetime
-from flask import Flask
-import requests
+import os
+import time
 
 app = Flask(__name__)
 
-# ===== グラフ作成 =====
-def create_graph(data):
-    dates = []
-    values = []
+API_KEY = os.environ.get("API_KEY")
 
-    for item in data["observations"]:
-        if item["value"] != ".":
-            dates.append(datetime.strptime(item["date"], "%Y-%m-%d"))
-            values.append(float(item["value"]))
+# キャッシュ（1時間）
+CACHE = {}
+CACHE_TIME = 3600
 
+def get_data(series_id):
+    now = time.time()
+
+    if series_id in CACHE and now - CACHE[series_id]["time"] < CACHE_TIME:
+        return CACHE[series_id]["data"]
+
+    url = f"https://api.stlouisfed.org/fred/series/observations?series_id={series_id}&api_key={API_KEY}&file_type=json"
+    response = requests.get(url)
+    data = response.json()
+
+    CACHE[series_id] = {
+        "data": data,
+        "time": now
+    }
+
+    return data
+
+def create_graph(dates, values, title):
     plt.figure()
     plt.plot(dates, values)
+    plt.title(title)
+    plt.xticks(rotation=45)
+    plt.tight_layout()
 
     buf = io.BytesIO()
     plt.savefig(buf, format='png')
     buf.seek(0)
-
     return base64.b64encode(buf.getvalue()).decode()
-
 
 @app.route("/")
 def index():
 
-    API_KEY = "f507319255f52e56be8f36a80a366db4"
+    # 金利
+    data1 = get_data("DGS10")
+    obs1 = data1["observations"]
 
-    # ===== データ取得 =====
-    def get_data(series_id):
-        url = f"https://api.stlouisfed.org/fred/series/observations?series_id={series_id}&api_key={API_KEY}&file_type=json"
-        return requests.get(url).json()
+    dates1 = []
+    values1 = []
 
-    rate_data = get_data("DGS10")
-    cpi_data = get_data("CPIAUCSL")
-    unemp_data = get_data("UNRATE")
+    for item in obs1:
+        if item["value"] != ".":
+            dates1.append(datetime.strptime(item["date"], "%Y-%m-%d"))
+            values1.append(float(item["value"]))
 
-    # ===== 最新値 =====
-    rate_latest = rate_data["observations"][-1]["value"]
-    cpi_latest = cpi_data["observations"][-1]["value"]
-    unemp_latest = unemp_data["observations"][-1]["value"]
+    graph1 = create_graph(dates1, values1, "Interest Rate")
+    latest1 = obs1[-1]
 
-    # ===== グラフ =====
-    rate_graph = create_graph(rate_data)
-    cpi_graph = create_graph(cpi_data)
-    unemp_graph = create_graph(unemp_data)
+    # CPI
+    data2 = get_data("CPIAUCSL")
+    obs2 = data2["observations"]
+
+    dates2 = []
+    values2 = []
+
+    for item in obs2:
+        if item["value"] != ".":
+            dates2.append(datetime.strptime(item["date"], "%Y-%m-%d"))
+            values2.append(float(item["value"]))
+
+    graph2 = create_graph(dates2, values2, "CPI")
+    latest2 = obs2[-1]
+
+    # 失業率
+    data3 = get_data("UNRATE")
+    obs3 = data3["observations"]
+
+    dates3 = []
+    values3 = []
+
+    for item in obs3:
+        if item["value"] != ".":
+            dates3.append(datetime.strptime(item["date"], "%Y-%m-%d"))
+            values3.append(float(item["value"]))
+
+    graph3 = create_graph(dates3, values3, "Unemployment Rate")
+    latest3 = obs3[-1]
 
     return f"""
-<html>
-<head>
-    <title>経済ダッシュボード</title>
+    <html>
+    <head>
+    <meta name="viewport" content="width=device-width, initial-scale=1">
     <style>
-        body {{
-            font-family: Arial;
-            background-color: #f5f5f5;
-            text-align: center;
-        }}
-
-        .buttons {{
-            margin: 20px;
-        }}
-
-        button {{
-            padding: 10px 20px;
-            margin: 5px;
-            font-size: 16px;
-            cursor: pointer;
-        }}
-
-        .card {{
-            background: white;
-            padding: 20px;
-            margin: auto;
-            width: 600px;
-            border-radius: 12px;
-            box-shadow: 0 0 10px rgba(0,0,0,0.1);
-        }}
-
-        .value {{
-            font-size: 40px;
-            font-weight: bold;
-        }}
-
-        img {{
-            width: 100%;
-        }}
+    body {{
+        font-family: Arial;
+        text-align: center;
+        margin: 10px;
+    }}
+    .box {{
+        border: 1px solid #ccc;
+        padding: 15px;
+        margin-bottom: 20px;
+        border-radius: 10px;
+    }}
+    .big {{
+        font-size: 30px;
+        font-weight: bold;
+    }}
+    img {{
+        width: 100%;
+        max-width: 500px;
+    }}
     </style>
+    </head>
 
-    <script>
-        function show(type) {{
-            document.getElementById("rate").style.display = "none";
-            document.getElementById("cpi").style.display = "none";
-            document.getElementById("unemp").style.display = "none";
+    <body>
 
-            document.getElementById(type).style.display = "block";
-        }}
-    </script>
-</head>
+    <h1>📊 Economic Dashboard</h1>
 
-<body>
+    <div class="box">
+        <h2>Interest Rate</h2>
+        <div class="big">{latest1["value"]} %</div>
+        <p>{latest1["date"]}</p>
+        <img src="data:image/png;base64,{graph1}">
+    </div>
 
-<h1>📊 経済ダッシュボード</h1>
+    <div class="box">
+        <h2>CPI</h2>
+        <div class="big">{latest2["value"]}</div>
+        <p>{latest2["date"]}</p>
+        <img src="data:image/png;base64,{graph2}">
+    </div>
 
-<div class="buttons">
-    <button onclick="show('rate')">📈 金利</button>
-    <button onclick="show('cpi')">💰 CPI</button>
-    <button onclick="show('unemp')">👥 失業率</button>
-</div>
+    <div class="box">
+        <h2>Unemployment Rate</h2>
+        <div class="big">{latest3["value"]} %</div>
+        <p>{latest3["date"]}</p>
+        <img src="data:image/png;base64,{graph3}">
+    </div>
 
-<div id="rate" class="card">
-    <h2>📈 金利</h2>
-    <div class="value">{rate_latest} %</div>
-    <img src="data:image/png;base64,{rate_graph}">
-</div>
+    <hr>
+    <p style='font-size:12px;'>
+    This product uses the FRED® API but is not endorsed or certified by the Federal Reserve Bank of St. Louis.
+    </p>
 
-<div id="cpi" class="card" style="display:none;">
-    <h2>💰 インフレ（CPI）</h2>
-    <div class="value">{cpi_latest}</div>
-    <img src="data:image/png;base64,{cpi_graph}">
-</div>
-
-<div id="unemp" class="card" style="display:none;">
-    <h2>👥 失業率</h2>
-    <div class="value">{unemp_latest} %</div>
-    <img src="data:image/png;base64,{unemp_graph}">
-</div>
-
-<hr>
-<p style='font-size:12px;'>
-This product uses the FRED® API but is not endorsed or certified by the Federal Reserve Bank of St. Louis.
-</p>
-
-</body>
-</html>
-"""
-
+    </body>
+    </html>
+    """
 
 if __name__ == "__main__":
     app.run(debug=True)
