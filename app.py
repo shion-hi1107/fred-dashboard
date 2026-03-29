@@ -11,7 +11,7 @@ app = Flask(__name__)
 API_KEY = os.environ.get("API_KEY")
 
 CACHE = {}
-CACHE_TIME = 600  # ← ここが10分（600秒）
+CACHE_TIME = 600
 
 def get_data(series_id):
     now = time.time()
@@ -68,9 +68,11 @@ def index():
 
         blocks += f"""
         <div id="{key}" class="box {active}">
-            <h2>{title}</h2>
-            <div class="big">{latest} {unit}</div>
-            {graph}
+            <div class="card">
+                <h2>{title}</h2>
+                <div class="big">{latest} {unit}</div>
+                {graph}
+            </div>
         </div>
         """
 
@@ -78,15 +80,14 @@ def index():
     <html>
     <head>
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    <meta http-equiv="refresh" content="300">  <!-- 5分ごと更新 -->
+    <meta http-equiv="refresh" content="300">
 
     <style>
     body {{
         font-family: Arial;
-        text-align: center;
         margin: 0;
-        background: white;
-        color: black;
+        background: #f4f6f9;
+        text-align: center;
     }}
 
     body.dark {{
@@ -95,13 +96,13 @@ def index():
     }}
 
     header {{
-        padding: 15px;
+        padding: 20px;
         font-size: 24px;
         font-weight: bold;
     }}
 
     button {{
-        padding: 10px;
+        padding: 10px 15px;
         margin: 5px;
         border-radius: 8px;
         border: none;
@@ -113,8 +114,21 @@ def index():
     .box {{ display: none; }}
     .active {{ display: block; }}
 
+    .card {{
+        background: white;
+        margin: 20px auto;
+        padding: 20px;
+        border-radius: 12px;
+        max-width: 700px;
+        box-shadow: 0 4px 10px rgba(0,0,0,0.1);
+    }}
+
+    body.dark .card {{
+        background: #1e1e1e;
+    }}
+
     .big {{
-        font-size: 32px;
+        font-size: 36px;
         font-weight: bold;
         margin: 10px;
     }}
