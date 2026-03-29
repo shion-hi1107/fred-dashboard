@@ -44,6 +44,49 @@ def create_plot(dates, values, title):
 
     return pio.to_html(fig, full_html=False)
 
+# 🔥 安全コメント生成（状況対応）
+def generate_comment(title, values):
+    if not values or len(values) < 2:
+        return "データに基づく一般的な情報を表示しています。"
+
+    latest = values[-1]
+    prev = values[-2]
+
+    try:
+        latest = float(latest)
+        prev = float(prev)
+    except:
+        return "市場データは様々な要因の影響を受けるとされています。"
+
+    change = latest - prev
+
+    if change > 0:
+        trend = "上昇傾向"
+    elif change < 0:
+        trend = "低下傾向"
+    else:
+        trend = "横ばい"
+
+    if title == "金利":
+        return f"米国金利は現在、{trend}で推移していると見られており、金融政策やインフレ動向の影響が背景にある可能性があります。"
+
+    elif title == "CPI":
+        return f"CPIは{trend}の動きが見られ、物価動向を示す指標として注目されているとされています。"
+
+    elif title == "失業率":
+        return f"失業率は{trend}の傾向が見られ、労働市場の状況を反映していると考えられています。"
+
+    elif title == "S&P500":
+        return f"株式市場は{trend}で推移しており、金利や経済状況の影響を受けていると見られています。"
+
+    elif title == "ドル円":
+        return f"為替は{trend}の動きとなっており、金利差や経済状況の影響が考えられています。"
+
+    elif title == "NASDAQ":
+        return f"ハイテク株は{trend}の動きが見られ、金利動向の影響を受けやすいとされています。"
+
+    return "市場は様々な要因により変動すると一般的に考えられています。"
+
 @app.route("/")
 def index():
 
@@ -63,6 +106,7 @@ def index():
         d, v = parse_data(obs)
         graph = create_plot(d, v, title)
         latest = obs[-1]["value"]
+        comment = generate_comment(title, v)
 
         active = "active" if key == "rate" else ""
 
@@ -71,6 +115,7 @@ def index():
             <div class="card">
                 <h2>{title}</h2>
                 <div class="big">{latest} {unit}</div>
+                <p style="font-size:14px; color:gray;">{comment}</p>
                 {graph}
             </div>
         </div>
@@ -132,6 +177,12 @@ def index():
         font-weight: bold;
         margin: 10px;
     }}
+
+    footer {{
+        font-size: 12px;
+        color: gray;
+        padding: 20px;
+    }}
     </style>
 
     <script>
@@ -171,6 +222,11 @@ def index():
     <button onclick="show('nasdaq')">NASDAQ</button>
 
     {blocks}
+
+    <footer>
+    本サイトの情報は一般的な情報提供を目的としており、投資助言を行うものではありません。<br>
+    金融商品に関する最終的な判断はご自身の責任でお願いします。
+    </footer>
 
     </body>
     </html>
