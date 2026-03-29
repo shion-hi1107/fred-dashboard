@@ -145,6 +145,10 @@ def index():
 
     <header>📊 Economic Dashboard</header>
 
+    <p style="max-width:700px;margin:10px auto;color:gray;font-size:14px;">
+    このサイトは、経済指標や市場データを分かりやすく可視化し、一般的な情報提供を目的としています。
+    </p>
+
     <button onclick="toggleDark()">🌙</button><br>
 
     <button onclick="show('rate')">金利</button>
