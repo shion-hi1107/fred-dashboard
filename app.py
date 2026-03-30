@@ -34,9 +34,12 @@ def parse_data(obs):
 
 def create_plot(dates, values, title):
     fig = go.Figure()
-    fig.add_trace(go.Scatter(x=dates, y=values, mode='lines', line=dict(width=2)))
+    fig.add_trace(go.Scatter(x=dates, y=values, mode='lines'))
     fig.update_layout(template="plotly_white", height=350)
     return pio.to_html(fig, full_html=False)
+
+def comment(title):
+    return f"{title}は現在の経済状況を示す重要な指標であり、金融政策や市場動向の影響を受けて変動すると一般的に考えられています。"
 
 @app.route("/")
 def index():
@@ -65,6 +68,7 @@ def index():
             <div class="card">
                 <h2>{title}</h2>
                 <div class="big">{latest} {unit}</div>
+                <p style="font-size:14px;color:gray;">{comment(title)}</p>
                 {graph}
             </div>
         </div>
@@ -74,7 +78,6 @@ def index():
     <html>
     <head>
 
-    <!-- AdSenseコード（あなた専用） -->
     <script async src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-6188755905265058"
     crossorigin="anonymous"></script>
 
@@ -102,7 +105,7 @@ def index():
 
     <h1>📊 Economic Dashboard</h1>
 
-    <p>このサイトは、経済指標や市場データを分かりやすく可視化し、一般的な情報提供を目的としています。</p>
+    <p>このサイトは経済データを分かりやすく解説する情報提供サイトです。</p>
 
     <button onclick="show('rate')">金利</button>
     <button onclick="show('cpi')">CPI</button>
@@ -110,8 +113,34 @@ def index():
     <button onclick="show('sp')">S&P500</button>
     <button onclick="show('fx')">ドル円</button>
     <button onclick="show('nasdaq')">NASDAQ</button>
+    <button onclick="show('policy')">ポリシー</button>
+    <button onclick="show('contact')">お問い合わせ</button>
 
     {blocks}
+
+    <div id="policy" class="box">
+      <div class="card">
+        <h2>プライバシーポリシー</h2>
+        <p>本サイトは広告配信を行う可能性があります。Cookieを使用する場合があります。</p>
+        <p>本サイトは投資助言を目的としておらず、最終判断はご自身でお願いします。</p>
+      </div>
+    </div>
+
+    <div id="contact" class="box">
+      <div class="card">
+        <h2>お問い合わせ</h2>
+        <form action="https://formspree.io/f/mlgojwnv" method="POST">
+          <input type="text" name="name" placeholder="名前" required><br><br>
+          <input type="email" name="email" placeholder="メール" required><br><br>
+          <textarea name="message" placeholder="内容" required></textarea><br><br>
+          <button type="submit">送信</button>
+        </form>
+      </div>
+    </div>
+
+    <footer style="font-size:12px;color:gray;margin:20px;">
+    本サイトは一般情報提供であり投資助言ではありません。
+    </footer>
 
     </body>
     </html>
