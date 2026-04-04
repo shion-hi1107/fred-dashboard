@@ -32,45 +32,47 @@ def parse_data(obs):
             values.append(float(item["value"]))
     return dates, values
 
-def create_plot(dates, values, title):
+def create_plot(dates, values):
     fig = go.Figure()
     fig.add_trace(go.Scatter(x=dates, y=values, mode='lines'))
     fig.update_layout(template="plotly_white", height=350)
     return pio.to_html(fig, full_html=False)
 
-def comment(title):
-    return f"{title}は現在の経済状況を示す重要な指標であり、金融政策や市場動向の影響を受けて変動すると一般的に考えられています。"
+def long_comment(title):
+    return f"""
+    {title}は経済の動きを把握する上で重要な指標の一つです。
+    一般的に、この指標は中央銀行の政策や景気動向、インフレ率などの影響を受けて変動すると考えられています。
+    例えば、金利が上昇する局面ではインフレ抑制の意図があると見られる一方で、株式市場には下押し圧力がかかる可能性があると指摘されています。
+    また、このデータの変化は為替や企業活動にも影響を与える可能性があるため、多くの投資家や経済関係者が注視しているとされています。
+    ただし、これらは一般的な見方であり、将来の動きを保証するものではありません。
+    """
 
 @app.route("/")
 def index():
 
     datasets = {
-        "rate": ("DGS10", "金利", "%"),
-        "cpi": ("CPIAUCSL", "CPI", ""),
-        "unemp": ("UNRATE", "失業率", "%"),
-        "sp": ("SP500", "S&P500", ""),
-        "fx": ("DEXJPUS", "ドル円", ""),
-        "nasdaq": ("NASDAQCOM", "NASDAQ", "")
+        "金利": ("DGS10", "%"),
+        "CPI": ("CPIAUCSL", ""),
+        "失業率": ("UNRATE", "%"),
+        "S&P500": ("SP500", ""),
+        "ドル円": ("DEXJPUS", ""),
+        "NASDAQ": ("NASDAQCOM", "")
     }
 
-    blocks = ""
+    content = ""
 
-    for key, (sid, title, unit) in datasets.items():
+    for title, (sid, unit) in datasets.items():
         obs = get_data(sid)["observations"][-200:]
         d, v = parse_data(obs)
-        graph = create_plot(d, v, title)
+        graph = create_plot(d, v)
         latest = obs[-1]["value"]
 
-        active = "active" if key == "rate" else ""
-
-        blocks += f"""
-        <div id="{key}" class="box {active}">
-            <div class="card">
-                <h2>{title}</h2>
-                <div class="big">{latest} {unit}</div>
-                <p style="font-size:14px;color:gray;">{comment(title)}</p>
-                {graph}
-            </div>
+        content += f"""
+        <div class="card">
+            <h2>{title}</h2>
+            <div class="big">{latest} {unit}</div>
+            <p>{long_comment(title)}</p>
+            {graph}
         </div>
         """
 
@@ -86,56 +88,47 @@ def index():
     <style>
     body {{ font-family: Arial; text-align:center; background:#f4f6f9; }}
     .card {{ background:white; margin:20px auto; padding:20px; max-width:700px; border-radius:10px; }}
-    .box {{ display:none; }}
-    .active {{ display:block; }}
-    button {{ padding:10px; margin:5px; }}
+    .big {{ font-size:28px; margin:10px; }}
     </style>
-
-    <script>
-    function show(id) {{
-        let boxes = document.getElementsByClassName("box");
-        for (let i=0;i<boxes.length;i++) boxes[i].classList.remove("active");
-        document.getElementById(id).classList.add("active");
-    }}
-    </script>
 
     </head>
 
     <body>
 
-    <h1>📊 Economic Dashboard</h1>
+    <h1>📊 経済ダッシュボード</h1>
 
-    <p>このサイトは経済データを分かりやすく解説する情報提供サイトです。</p>
+    <p>
+    本サイトは、金利・物価・失業率・株価・為替などの経済指標を分かりやすく可視化し、
+    一般的な情報提供を目的としたサイトです。
+    各データは公的機関の情報をもとに表示しており、経済の流れを把握する参考情報として活用されることが想定されています。
+    なお、本サイトは特定の投資判断を推奨するものではありません。
+    </p>
 
-    <button onclick="show('rate')">金利</button>
-    <button onclick="show('cpi')">CPI</button>
-    <button onclick="show('unemp')">失業率</button>
-    <button onclick="show('sp')">S&P500</button>
-    <button onclick="show('fx')">ドル円</button>
-    <button onclick="show('nasdaq')">NASDAQ</button>
-    <button onclick="show('policy')">ポリシー</button>
-    <button onclick="show('contact')">お問い合わせ</button>
+    {content}
 
-    {blocks}
-
-    <div id="policy" class="box">
-      <div class="card">
-        <h2>プライバシーポリシー</h2>
-        <p>本サイトは広告配信を行う可能性があります。Cookieを使用する場合があります。</p>
-        <p>本サイトは投資助言を目的としておらず、最終判断はご自身でお願いします。</p>
-      </div>
+    <div class="card">
+        <h2>まとめ</h2>
+        <p>
+        現在の経済環境は、インフレ動向や金融政策の影響を受けて変動していると一般的に見られています。
+        各指標は相互に関連しており、一つのデータだけで判断するのではなく、全体的な流れとして把握することが重要とされています。
+        今後の動きについては様々な見方があり、不確実性が高い状況が続く可能性があると考えられています。
+        </p>
     </div>
 
-    <div id="contact" class="box">
-      <div class="card">
+    <div class="card">
+        <h2>プライバシーポリシー</h2>
+        <p>本サイトでは広告配信のためにCookieを使用する場合があります。</p>
+        <p>本サイトは情報提供を目的としており、投資助言ではありません。</p>
+    </div>
+
+    <div class="card">
         <h2>お問い合わせ</h2>
         <form action="https://formspree.io/f/mlgojwnv" method="POST">
-          <input type="text" name="name" placeholder="名前" required><br><br>
-          <input type="email" name="email" placeholder="メール" required><br><br>
-          <textarea name="message" placeholder="内容" required></textarea><br><br>
-          <button type="submit">送信</button>
+            <input type="text" name="name" placeholder="名前" required><br><br>
+            <input type="email" name="email" placeholder="メール" required><br><br>
+            <textarea name="message" placeholder="内容" required></textarea><br><br>
+            <button type="submit">送信</button>
         </form>
-      </div>
     </div>
 
     <footer style="font-size:12px;color:gray;margin:20px;">
